@@ -1,7 +1,13 @@
 import Phaser from 'phaser'
 import { TextureKeys } from '../constants/TextureKeys'
+import { Player } from '../objects/Player'
 
 export class GameScene extends Phaser.Scene {
+  // privateフィールド: このクラス内からしかアクセスできない
+  // !（非nullアサーション）: createで必ず初期化されるためnullチェックを省略
+  private player!: Player
+  private cursors!: Phaser.Types.Input.Keyboard.CursorKeys
+
   constructor() {
     super({ key: 'GameScene' })
   }
@@ -15,13 +21,18 @@ export class GameScene extends Phaser.Scene {
 
   // create: ゲームオブジェクトの初期配置
   create(): void {
-    // 背景を黒に
     this.cameras.main.setBackgroundColor('#000000')
+
+    // 自機を画面下中央に配置
+    this.player = new Player(this, 240, 560)
+
+    // カーソルキー（矢印キー）を取得
+    this.cursors = this.input.keyboard!.createCursorKeys()
   }
 
   // update: 毎フレーム呼ばれるゲームループ
   update(): void {
-    // 各ステップで処理を追加していく
+    this.player.move(this.cursors)
   }
 
   private createPlaceholderTextures(): void {
