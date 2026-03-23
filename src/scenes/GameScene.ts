@@ -1,12 +1,17 @@
 import Phaser from 'phaser'
 import { TextureKeys } from '../constants/TextureKeys'
 import { Player } from '../objects/Player'
+import { Bullet } from '../objects/Bullet'
 
 export class GameScene extends Phaser.Scene {
   // privateフィールド: このクラス内からしかアクセスできない
   // !（非nullアサーション）: createで必ず初期化されるためnullチェックを省略
   private player!: Player
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys
+  // Bullet[] 型: Bulletの配列
+  private bullets: Bullet[] = []
+  // スペースキーの前フレームの状態（押しっぱなし連射防止）
+  private spaceWasDown = false
 
   constructor() {
     super({ key: 'GameScene' })
@@ -33,6 +38,27 @@ export class GameScene extends Phaser.Scene {
   // update: 毎フレーム呼ばれるゲームループ
   update(): void {
     this.player.move(this.cursors)
+    this.handleShooting()
+
+    // 画面外に出た弾を削除
+    for (const bullet of this.bullets) {
+      bullet.updatePosition()
+    }
+    // destroyされた弾をリストから除去
+    this.bullets = this.bullets.filter(b => b.active)
+  }
+
+  private handleShooting(): void {
+    const spaceDown = this.input.keyboard!.addKey('SPACE').isDown
+
+    // 前フレームで押されておらず、今フレームで押された瞬間だけ発射
+    if (spaceDown && !this.spaceWasDown) {
+      const bullet = new Bullet(this, this.player.x, this.player.y - 20)
+      bullet.fire(this.player.x, this.player.y - 20)
+      this.bullets.push(bullet)
+    }
+
+    this.spaceWasDown = spaceDown
   }
 
   private createPlaceholderTextures(): void {
