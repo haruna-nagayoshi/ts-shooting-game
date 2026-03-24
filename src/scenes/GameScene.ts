@@ -2,16 +2,17 @@ import Phaser from 'phaser'
 import { TextureKeys } from '../constants/TextureKeys'
 import { Player } from '../objects/Player'
 import { Bullet } from '../objects/Bullet'
+import { Enemy } from '../objects/Enemy'
 
 export class GameScene extends Phaser.Scene {
-  // privateフィールド: このクラス内からしかアクセスできない
-  // !（非nullアサーション）: createで必ず初期化されるためnullチェックを省略
   private player!: Player
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys
-  // Bullet[] 型: Bulletの配列
   private bullets: Bullet[] = []
-  // スペースキーの前フレームの状態（押しっぱなし連射防止）
+  private enemies: Enemy[] = []
   private spaceWasDown = false
+  // 敵のスポーン間隔を管理するタイマー
+  private enemySpawnTimer = 0
+  private readonly ENEMY_SPAWN_INTERVAL = 2000 // ミリ秒
 
   constructor() {
     super({ key: 'GameScene' })
@@ -36,16 +37,35 @@ export class GameScene extends Phaser.Scene {
   }
 
   // update: 毎フレーム呼ばれるゲームループ
-  update(): void {
+  // delta: 前フレームからの経過ミリ秒（フレームレートに依存しない動きに使う）
+  update(_time: number, delta: number): void {
     this.player.move(this.cursors)
     this.handleShooting()
+    this.handleEnemySpawn(delta)
 
-    // 画面外に出た弾を削除
     for (const bullet of this.bullets) {
       bullet.updatePosition()
     }
-    // destroyされた弾をリストから除去
     this.bullets = this.bullets.filter(b => b.active)
+
+    for (const enemy of this.enemies) {
+      enemy.updatePosition()
+    }
+    this.enemies = this.enemies.filter(e => e.active)
+  }
+
+  private handleEnemySpawn(delta: number): void {
+    this.enemySpawnTimer += delta
+
+    if (this.enemySpawnTimer >= this.ENEMY_SPAWN_INTERVAL) {
+      this.enemySpawnTimer = 0
+      // x座標をランダムに選んで画面上端からスポーン
+      // Phaser.Math.Between: min〜maxの整数乱数
+      const x = Phaser.Math.Between(20, 460)
+      const enemy = new Enemy(this, x, -20)
+      enemy.startMoving()
+      this.enemies.push(enemy)
+    }
   }
 
   private handleShooting(): void {
