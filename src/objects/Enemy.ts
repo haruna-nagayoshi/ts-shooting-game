@@ -4,6 +4,9 @@ import { TextureKeys } from '../constants/TextureKeys'
 export const ENEMY_SPEED = 150
 
 export class Enemy extends Phaser.Physics.Arcade.Sprite {
+  // 発射タイマー: 生成直後に発射されないよう初期値を設定
+  fireTimer = 0
+
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y, TextureKeys.ENEMY)
     scene.add.existing(this)
