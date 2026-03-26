@@ -16,6 +16,7 @@ export class GameScene extends Phaser.Scene {
   private enemySpawnTimer = 0
   private readonly ENEMY_SPAWN_INTERVAL = 2000 // ミリ秒
   private readonly ENEMY_FIRE_INTERVAL = 3000 // 敵の発射間隔（ミリ秒）
+  private isGameOver = false
 
   constructor() {
     super({ key: 'GameScene' })
@@ -30,21 +31,59 @@ export class GameScene extends Phaser.Scene {
 
   // create: ゲームオブジェクトの初期配置
   create(): void {
+    this.isGameOver = false
+    this.bullets = []
+    this.enemies = []
+    this.enemyBullets = []
+
     this.cameras.main.setBackgroundColor('#000000')
 
-    // 自機を画面下中央に配置
     this.player = new Player(this, 240, 560)
-
-    // カーソルキー（矢印キー）を取得
     this.cursors = this.input.keyboard!.createCursorKeys()
   }
 
   // update: 毎フレーム呼ばれるゲームループ
   // delta: 前フレームからの経過ミリ秒（フレームレートに依存しない動きに使う）
   update(_time: number, delta: number): void {
+    if (this.isGameOver) {
+      // Rキーでリスタート
+      if (this.input.keyboard!.addKey('R').isDown) {
+        this.scene.restart()
+      }
+      return
+    }
+
     this.player.move(this.cursors)
     this.handleShooting()
     this.handleEnemySpawn(delta)
+
+    // 当たり判定: 自機弾 ↔ 敵
+    for (const bullet of this.bullets) {
+      for (const enemy of this.enemies) {
+        if (bullet.active && enemy.active &&
+            Phaser.Geom.Intersects.RectangleToRectangle(
+              bullet.getBounds(), enemy.getBounds()
+            )) {
+          this.onPlayerBulletHitEnemy(bullet, enemy)
+        }
+      }
+    }
+
+    // 当たり判定: 敵弾・敵 ↔ 自機
+    for (const eb of this.enemyBullets) {
+      if (eb.active && Phaser.Geom.Intersects.RectangleToRectangle(
+        eb.getBounds(), this.player.getBounds()
+      )) {
+        this.onEnemyHitPlayer(eb)
+      }
+    }
+    for (const enemy of this.enemies) {
+      if (enemy.active && Phaser.Geom.Intersects.RectangleToRectangle(
+        enemy.getBounds(), this.player.getBounds()
+      )) {
+        this.onEnemyHitPlayer(enemy)
+      }
+    }
 
     for (const bullet of this.bullets) {
       bullet.updatePosition()
@@ -68,6 +107,53 @@ export class GameScene extends Phaser.Scene {
       eb.updatePosition()
     }
     this.enemyBullets = this.enemyBullets.filter(eb => eb.active)
+  }
+
+  // テストから呼べるようpublicにする
+  onPlayerBulletHitEnemy(
+    bullet: Phaser.Physics.Arcade.Sprite,
+    enemy: Phaser.Physics.Arcade.Sprite
+  ): void {
+    this.spawnExplosion(enemy.x, enemy.y)
+    bullet.destroy()
+    enemy.destroy()
+  }
+
+  // 敵または敵弾が自機に当たったとき
+  onEnemyHitPlayer(
+    attacker: Phaser.Physics.Arcade.Sprite
+  ): void {
+    attacker.destroy()
+    this.gameOver()
+  }
+
+  gameOver(): void {
+    this.isGameOver = true
+    // playerが初期化済みの場合のみ削除（テスト時はcreateが呼ばれないためガード）
+    this.player?.destroy()
+
+    // ゲームオーバーテキストを画面中央に表示
+    this.add.text(240, 280, 'GAME OVER', {
+      fontSize: '48px',
+      color: '#ffffff',
+    }).setOrigin(0.5)
+
+    this.add.text(240, 340, 'Press R to Restart', {
+      fontSize: '24px',
+      color: '#aaaaaa',
+    }).setOrigin(0.5)
+  }
+
+  private spawnExplosion(x: number, y: number): void {
+    // 黄色い円を一瞬表示して消す簡易爆発エフェクト
+    const g = this.add.graphics()
+    g.fillStyle(0xffaa00)
+    g.fillCircle(x, y, 20)
+    // 300ms後に削除
+    this.time.addEvent({
+      delay: 300,
+      callback: () => g.destroy(),
+    })
   }
 
   private handleEnemySpawn(delta: number): void {
