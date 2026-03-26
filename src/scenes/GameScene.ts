@@ -3,16 +3,19 @@ import { TextureKeys } from '../constants/TextureKeys'
 import { Player } from '../objects/Player'
 import { Bullet } from '../objects/Bullet'
 import { Enemy } from '../objects/Enemy'
+import { EnemyBullet } from '../objects/EnemyBullet'
 
 export class GameScene extends Phaser.Scene {
   private player!: Player
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys
   private bullets: Bullet[] = []
   private enemies: Enemy[] = []
+  private enemyBullets: EnemyBullet[] = []
   private spaceWasDown = false
   // 敵のスポーン間隔を管理するタイマー
   private enemySpawnTimer = 0
   private readonly ENEMY_SPAWN_INTERVAL = 2000 // ミリ秒
+  private readonly ENEMY_FIRE_INTERVAL = 3000 // 敵の発射間隔（ミリ秒）
 
   constructor() {
     super({ key: 'GameScene' })
@@ -50,8 +53,21 @@ export class GameScene extends Phaser.Scene {
 
     for (const enemy of this.enemies) {
       enemy.updatePosition()
+      // 一定間隔で敵弾を発射
+      enemy.fireTimer += delta
+      if (enemy.fireTimer >= this.ENEMY_FIRE_INTERVAL) {
+        enemy.fireTimer = 0
+        const eb = new EnemyBullet(this, enemy.x, enemy.y + 20)
+        eb.fire(enemy.x, enemy.y + 20)
+        this.enemyBullets.push(eb)
+      }
     }
     this.enemies = this.enemies.filter(e => e.active)
+
+    for (const eb of this.enemyBullets) {
+      eb.updatePosition()
+    }
+    this.enemyBullets = this.enemyBullets.filter(eb => eb.active)
   }
 
   private handleEnemySpawn(delta: number): void {
