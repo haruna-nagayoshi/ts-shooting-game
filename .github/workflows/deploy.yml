@@ -1,0 +1,45 @@
+name: Test & Deploy to itch.io
+
+# mainブランチにpushされたときだけ実行
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. リポジトリのコードを取得
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      # 2. Node.jsをセットアップ
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # 3. 依存パッケージをインストール
+      - name: Install dependencies
+        run: npm ci
+
+      # 4. テスト実行（失敗したらここで止まりデプロイしない）
+      - name: Run tests
+        run: npm run test
+
+      # 5. 本番ビルド
+      - name: Build
+        run: npm run build
+
+      # 6. itch.ioにデプロイ
+      - name: Deploy to itch.io
+        uses: josephbmanley/butler-publish-itchio-action@master
+        env:
+          BUTLER_CREDENTIALS: ${{ secrets.BUTLER_CREDENTIALS }}
+          CHANNEL: html5         # Webゲームなのでhtml5チャンネル
+          ITCH_GAME: ts-shooting-game  # ← itch.ioのゲームスラッグ（作成後に変更）
+          ITCH_USER: haruna-nagayoshi  # ← itch.ioのユーザー名（要確認）
+          PACKAGE: dist          # Viteのビルド出力ディレクトリ
